@@ -92,12 +92,12 @@ def binary_mask(image, threshold=230):
     bin_img = (image > threshold).astype(np.uint8) * 255  # True->255, False->0
     return bin_img
 
-def image_dilatation(image, kernel_dim = (3, 3), iterations_num=2):
+def image_erosion(image, kernel_dim = (3, 3), iterations_num=2):
     kernel = np.ones(kernel_dim , np.uint8)
     dilated_img = cv2.erode(image, kernel, iterations=iterations_num)
     return dilated_img
 
-def image_erosion(image, kernel_dim = (3, 3), iterations_num=2):
+def image_dilatation(image, kernel_dim = (3, 3), iterations_num=2):
     kernel = np.ones(kernel_dim , np.uint8)
     eroded_img = cv2.erode(255 - image, kernel, iterations=iterations_num)
     return 255 - eroded_img
@@ -111,6 +111,7 @@ def resize_image(image, target_size=(32, 32)):
 def skeletonize_image(image):
     image = image < 150   # crno postaje True
     skeleton = skeletonize(image)
+
     # Pretvori nazad u uint8: True=linija=crno (0), False=pozadina=belo (255)
     skeleton_img = np.where(skeleton, 0, 255).astype(np.uint8)
 
@@ -120,28 +121,50 @@ def processing_pipeline(image, target_size=(32, 32)):
 
     img = cv2.medianBlur(image, 5)
     img = binary_mask(img)
-    img = image_dilatation(img,iterations_num=3)
-    img = image_erosion(img,iterations_num=4)
+    img = image_erosion(img,iterations_num=3)
+    img = image_dilatation(img,iterations_num=2)    ##AKO POSTOJI PROBLEM PROVERITi DILATACIJU I EROZIJU
     img = crop_padding_image(img)
     img = resize_image(img, target_size)
-    # img = skeletonize_image(img)
+    img = skeletonize_image(img)
 
     return img
 
 if __name__ == "__main__":
-    for d in range(10):
-        image_path = f"data/{d}/cifra_{d}.jpg"
-        raw_img = read_img(path=image_path)
-        if raw_img is None:
-            continue
+    # for d in range(10):
+    #     image_path = f"data/{d}/cifra_{d}.jpg"
+    #     raw_img = read_img(path=image_path)
+    #
+    #     # Snimaj obrađene isečke u isti folder (data/d/)
+    #     split_digits_grid(
+    #         raw_img,
+    #         save_dir=f"data/{d}",
+    #         label=str(d),
+    #         show_plots=False,
+    #         target_size=(28, 28)
+    #     )
 
-        # Snimaj obrađene isečke u isti folder (data/d/)
-        split_digits_grid(
-            raw_img,
-            save_dir=f"data/{d}",
-            label=str(d),
-            show_plots=False,
-            target_size=(28, 28)
-        )
+    folder_path = 'Baza za OCR/Cifre za testiranje/'
+    out_dir = 'processed_images'  # folder za čuvanje novih slika
+    os.makedirs(out_dir, exist_ok=True)  # napravi folder ako ne postoji
+
+    for i in range(0, 10):
+        for j in range(1, 113):
+            # ulazni path
+            image_path = os.path.join(folder_path, f"{i}{j:03}.png")
+            raw_img = read_img(path=image_path)
+            processed_img = processing_pipeline(raw_img)
+
+            # napravi ime fajla: new_000.png
+            base = os.path.basename(image_path)  # npr. "000.png"
+            name, _ = os.path.splitext(base)  # "000"
+            fname = f"new_{name}.png"  # "new_000.png"
+
+            # izlazni path
+            out_path = os.path.join(out_dir, fname)
+
+            # snimi fajl
+            cv2.imwrite(out_path, processed_img, [cv2.IMWRITE_PNG_COMPRESSION, 9])
+
+            print(f"Done: {out_path}")
 
 
