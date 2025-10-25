@@ -1,29 +1,22 @@
 import cv2
-import numpy as np
-from matplotlib.gridspec import GridSpec
-from skimage.morphology import skeletonize
-from matplotlib import pyplot as plt
 import os, glob
 import numpy as np
-from skimage.feature import hog as skimage_hog
+from matplotlib.gridspec import GridSpec
+from matplotlib import pyplot as plt
 
 def horizontal_black_density(img, k=4, dtype=np.float32):
     """
     Funkcija deli već binarnu sliku na k horizontalnih segmenata i računa
     gustinu crnih piksela u svakom segmentu.
     Očekuje se da je 'img' 2D numpy niz sa vrednostima 0/1 ili 0/255.
-    Rezultat: numpy niz dužine k sa vrednostima [0,1].
+    Rezultat: numpy niz dužine k sa vrednostima u opsegu [0,1].
     """
-    img = np.asarray(img)
-    if img.ndim != 2:
-        raise ValueError("Očekujem 2D sliku (H,W).")
-
     H, W = img.shape
     edges = np.linspace(0, H, num=k+1, dtype=int)
 
     dens = np.empty(k, dtype=dtype)
     for i in range(k):
-        r0, r1 = edges[i], edges[i + 1]
+        r0, r1 = edges[i], edges[i+1]
         seg = img[r0:r1, :]
         dens[i] = np.count_nonzero(seg == 0) / seg.size if seg.size > 0 else 0.0
     return dens
@@ -32,6 +25,7 @@ def vertical_black_density(img, k=4, dtype=np.float32):
     """
     Deli binarnu sliku (0=crno, >0=belo) na k vertikalnih segmenata
     i vraća gustinu crnih piksela po segmentu kao niz dužine k.
+    Rezultat: numpy niz dužine k sa vrednostima u opsegu [0,1].
     """
     H, W = img.shape
     edges = np.linspace(0, W, k+1, dtype=int)
@@ -43,10 +37,9 @@ def vertical_black_density(img, k=4, dtype=np.float32):
         dens[i] = np.count_nonzero(seg == 0) / seg.size if seg.size > 0 else 0.0
     return dens
 
-def plot_image_with_densities(img, kx = None, ky = None):
+def plot_image_with_densities(img, kx = None, ky = None, plot_save_path = None):
     """
     Prikazuje sliku, ispod gustinu crnog po koloni (x), desno po redu (y).
-    (0=crno, >0=belo).
     """
     H, W = img.shape
     kx = W if kx is None else int(kx)
@@ -54,19 +47,19 @@ def plot_image_with_densities(img, kx = None, ky = None):
     kx = max(1, kx)
     ky = max(1, ky)
 
-    # izračun gustina po segmentima (nezavisno od piksela)
+    # izracunavanje gustina po segmentima
     x_density = vertical_black_density(img, k=kx)  # dužina = kx
     y_density = horizontal_black_density(img, k=ky)  # dužina = ky
 
-    # === CRTANJE ===
+    #plotovanje
     fig = plt.figure(figsize=(8, 6), constrained_layout=True)
 
     # Fiksne srazmere (ne zavise od H/W) i bez deljenja osa!
     gs = GridSpec(2, 2, figure=fig, height_ratios=[4, 1], width_ratios=[4, 1])
 
     ax_img = fig.add_subplot(gs[0, 0])
-    ax_right = fig.add_subplot(gs[0, 1])  # bez sharey
-    ax_bot = fig.add_subplot(gs[1, 0])  # bez sharex
+    ax_right = fig.add_subplot(gs[0, 1])
+    ax_bot = fig.add_subplot(gs[1, 0])
 
     # 1) Slika
     ax_img.imshow(img, cmap="gray", interpolation="nearest")
@@ -87,73 +80,40 @@ def plot_image_with_densities(img, kx = None, ky = None):
     ax_right.set_ylabel("segment po y (0..ky-1)")
     ax_right.grid(True, alpha=0.3)
 
+    if plot_save_path:
+        plt.savefig(plot_save_path, dpi=300, bbox_inches='tight')
     plt.show()
-    return x_density, y_density
 
-##classes
+## classes
 
-def feature_aspect_ratio(img, threshold=127):
-    """
-    Odnos širina/visina foreground-a (0 pikseli = crno = foreground).
-    Računa se na bounding-boxu crnih piksela. Ako nema foregrounda, vraća 0.0.
-    """
-
-    mask = (img == 0)
-    if not np.any(mask):
-        return np.float32(0.0)
-
-    rows = np.any(mask, axis=1)
-    cols = np.any(mask, axis=0)
-    r_idx = np.where(rows)[0]
-    c_idx = np.where(cols)[0]
-    r0, r1 = r_idx[0], r_idx[-1]
-    c0, c1 = c_idx[0], c_idx[-1]
-
-    height = (r1 - r0 + 1)
-    width  = (c1 - c0 + 1)
-    if height <= 0:
-        return np.float32(0.0)
-    return np.float32(width / float(height))
-
-
-def feature_center_of_mass(img, threshold=127):
+def feature_center_of_mass(img):
     """
     Vraća radijalnu udaljenost centra mase crnih piksela (0=crno)
     od centra slike, normalizovanu na [0, 1].
-    Ako nema foregrounda, vraća 0.0.
+    Vraca radijalnu udaljenost od centra (0.5, 0.5)
     """
-    if img.ndim == 3:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, bin_img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
 
-    mask = (bin_img == 0).astype(np.float64)
-    mass = mask.sum()
-    H, W = mask.shape
+    B = (img == 0).astype(np.float32)
+    mass = B.sum()
     if mass <= 0:
         return np.float32(0.0)
 
-    xs = np.arange(W, dtype=np.float64)
-    ys = np.arange(H, dtype=np.float64)
-    cx = (mask.sum(axis=0) * xs).sum() / mass
-    cy = (mask.sum(axis=1) * ys).sum() / mass
+    H, W = B.shape
+    xs = np.arange(W, dtype=np.float32)
+    ys = np.arange(H, dtype=np.float32)
+    cx = (B.sum(axis=0) * xs).sum() / mass
+    cy = (B.sum(axis=1) * ys).sum() / mass
 
     cx_norm = cx / max(W - 1, 1.0)
     cy_norm = cy / max(H - 1, 1.0)
-
-    # radijalna udaljenost od centra (0.5, 0.5)
     r = np.sqrt((cx_norm - 0.5) ** 2 + (cy_norm - 0.5) ** 2)
     return np.float32(r)
 
+def count_transitions_xy(img, normalize=False):
 
-def count_transitions_xy(img, threshold=127, normalize=False):
-    if img.ndim == 3:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, bin_img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
-    bw = (bin_img == 0).astype(np.uint8)
-
-    H, W = bw.shape
-    h_trans = np.sum(bw[:, 1:] != bw[:, :-1])
-    v_trans = np.sum(bw[1:, :] != bw[:-1, :])
+    H, W = img.shape
+    h_trans = np.sum(img[:, 1:] != img[:, :-1])
+    v_trans = np.sum(img[1:, :] != img[:-1, :])
 
     if not normalize:
         return float(h_trans), float(v_trans)
@@ -162,58 +122,55 @@ def count_transitions_xy(img, threshold=127, normalize=False):
     v_norm = v_trans / max(W * (H - 1), 1)
     return float(h_norm), float(v_norm)
 
-def feature_image_moments(img, threshold=127):
-    if img.ndim == 3:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, bin_img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
-    w = (bin_img == 0).astype(np.float64)
+def feature_image_moments(img):
 
-    H, W = w.shape
-    mass = w.sum()
+    B = (img == 0).astype(np.float32)
+    mass = B.sum()
     if mass == 0:
         return np.float32(0.0)
 
-    xs = np.arange(W, dtype=np.float64)
-    ys = np.arange(H, dtype=np.float64)
-    cx = (w.sum(axis=0) * xs).sum() / mass
-    cy = (w.sum(axis=1) * ys).sum() / mass
+    H, W = B.shape
+    xs = np.arange(W, dtype=np.float32)
+    ys = np.arange(H, dtype=np.float32)
+    cx = (B.sum(axis=0) * xs).sum() / mass
+    cy = (B.sum(axis=1) * ys).sum() / mass
+
     X, Y = np.meshgrid(xs - cx, ys - cy)
+    mu20 = (B * (X**2)).sum()
+    mu02 = (B * (Y**2)).sum()
+    mu11 = (B * (X*Y)).sum()
 
-    mu20 = (w * (X**2)).sum()
-    mu02 = (w * (Y**2)).sum()
-    mu11 = (w * (X*Y)).sum()
-
-    # "energija" centralnih momenata drugog reda
     moment_feature = np.sqrt(mu20**2 + mu02**2 + 2*mu11**2) / (mass**2)
     return np.float32(moment_feature)
 
-
 def compute_features(img, kx=4, ky=4, threshold=127):
-    # obezbedi binarnu 2D sliku (0=crno, 255=belo)
-    if img.ndim == 3:
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    if not (np.array_equal(img, img.astype(bool)*255) or np.array_equal(img, img.astype(bool)*0)):
-        _, img = cv2.threshold(img, threshold, 255, cv2.THRESH_BINARY)
-
     x_density = horizontal_black_density(img, k=kx).astype(np.float32)
     mean_x = float(np.mean(x_density))
     var_x = np.var(x_density)
+
     y_density = vertical_black_density(img, k=ky).astype(np.float32)
     var_y = np.var(y_density)
 
     moment_feature = feature_image_moments(img)
-    h, v = count_transitions_xy(img)
-    r = feature_center_of_mass(img, threshold=threshold)
+    h, v = count_transitions_xy(img, normalize=True)   # ← preporuka
+    r = feature_center_of_mass(img)
 
     return np.array([mean_x, var_x, var_y, moment_feature, h, v, r], dtype=np.float32)
 
 def zscore_normalize(X_train, X_test=None):
+    # Srednje vrednosti i standardne devijacije po kolonama
     mu = np.mean(X_train, axis=0)
-    sigma = np.std(X_train, axis=0) + 1e-8
+    sigma = np.std(X_train, axis=0) + 1e-8  # dodajemo epsilon da izbegnemo deljenje nulom
+
+    # Normalizacija trening skupa (Z-score): (x - μ) / σ
     X_train_n = (X_train - mu) / sigma
+
+    # Ako postoji test skup, normalizuje se istim μ i σ iz treninga
     if X_test is not None:
         X_test_n = (X_test - mu) / sigma
         return X_train_n, X_test_n, mu, sigma
+
+    # Inače vrati samo normalizovani trening skup
     return X_train_n, mu, sigma
 
 def extract_features_from_dir(dir_path="data/skeletonized/", classes=range(10), kx=4, ky=4,
@@ -223,7 +180,6 @@ def extract_features_from_dir(dir_path="data/skeletonized/", classes=range(10), 
     opciono binarizuje binarize_image, računa feature-e compute_features
     i vraća praktičnu strukturu za dalje korišćenje.
     """
-    import os, glob
     features_by_class = {}
     X_list, y_list = [], []
 
@@ -266,8 +222,7 @@ def extract_features_from_dir(dir_path="data/skeletonized/", classes=range(10), 
 
     return features_by_class, X, y, idx_by_class
 
-
-##plotting
+## plotting
 
 def plot_feature_corr(X, feature_names=None, show_cov=False, figsize=(7, 6), annotate=False):
     """
@@ -319,7 +274,7 @@ def plot_feature_corr(X, feature_names=None, show_cov=False, figsize=(7, 6), ann
         plt.tight_layout()
         plt.show()
 
-def plot_feature_space_2d(X, y, idx_by_class, feat_i=0, feat_j=1,
+def plot_feature_space_2d(X, y, idx_by_class, feat_i=0, feat_j=1, plot_path=None,
                           title=None, figsize=(7, 6), alpha=0.75, s=18,
                           show_centroids=True, equal_axes=False):
     N, D = X.shape
@@ -346,10 +301,14 @@ def plot_feature_space_2d(X, y, idx_by_class, feat_i=0, feat_j=1,
         ax.set_aspect("equal", adjustable="box")
 
     plt.tight_layout()
-    plt.show()
+    if plot_path:
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
 
-def plot_class_densities(class_label, dataset_root="data/skeletonized", br_kolona=5, br_redova=5, threshold=127, binarize=True):
-    import glob, os
+    # plt.show()
+
+
+def plot_class_densities(class_label, dataset_root="data/skeletonized", plot_path = None,
+                         br_kolona=5, br_redova=5, threshold=127, binarize=True):
     paths = sorted(glob.glob(os.path.join(dataset_root, str(class_label), "*.png")))
     if not paths:
         print(f"Nema slika za klasu {class_label}.")
@@ -437,8 +396,10 @@ def plot_class_densities(class_label, dataset_root="data/skeletonized", br_kolon
     ax.grid(True, alpha=0.3)
     ax.legend()
 
-    plt.show()
-    return stats
+    if plot_path:
+        plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+
+    # plt.show()
 
 def plot_cov_corr_matrix(X, feature_names=None, show_corr=True, figsize=(6, 5)):
 
@@ -491,32 +452,25 @@ def plot_cov_corr_matrix(X, feature_names=None, show_corr=True, figsize=(6, 5)):
     plt.tight_layout()
     plt.show()
 
-##utils
+## utils
 
 def load_image(filepath):
     """
     Učitava sliku sa zadate putanje pomoću OpenCV-a i vraća je kao numpy niz.
-    Ako je as_gray=True, slika se učitava u grayscale modu (2D niz).
     """
     flag = cv2.IMREAD_GRAYSCALE
     img = cv2.imread(filepath, flag)
     if img is None:
-        raise FileNotFoundError(f"Ne mogu da učitam sliku sa putanje: {filepath}")
+        raise FileNotFoundError(f"Pogresna putanja: {filepath}")
     return img
 
-def show_image(img):
-    cv2.imshow('image', img)
-    cv2.waitKey()
-
-def binarize_image(img, threshold=127, invert=False):
-    """
-    Binarizuje grayscale sliku. Ako invert=True, crno i belo se zamene.
-    Rezultat: 0 i 255.
-    """
-    if img.ndim != 2:
-        raise ValueError("Ocekujem grayscale sliku.")
+def binarize_image(img, threshold=127, invert=False, use_otsu=False):
     ttype = cv2.THRESH_BINARY_INV if invert else cv2.THRESH_BINARY
-    _, binary = cv2.threshold(img, threshold, 255, ttype)
+    if use_otsu:
+        ttype |= cv2.THRESH_OTSU
+        _, binary = cv2.threshold(img, 0, 255, ttype)
+    else:
+        _, binary = cv2.threshold(img, threshold, 255, ttype)
     return binary
 
 if __name__ == "__main__":
@@ -526,25 +480,29 @@ if __name__ == "__main__":
 
     # for i in range(0,10):
     #
-    #     image_example = load_image(DIR_PATH+f'{i}/{i}_4_0.png')
+    #     image_path = DIR_PATH+f'{i}/{i}_4_0.png'
+    #     plot_path = f'materijali/gustina_nonskel_{i}.png'
+    #     image_example = load_image(image_path)
     #     image_example = binarize_image(image_example)
     #     plot_image_with_densities(image_example, kx= br_kolona, ky=br_redova)
-    #
+
     # for i in range(0,10):
-    #     plot_class_densities(class_label=f'{i}', dataset_root='data/skeletonized')
-    #     plot_class_densities(class_label=f'{i}', dataset_root='data/non-skeletonized')
+    #     plot_path = f'materijali/gustina_klase_skel_{i}.png'
+    #     plot_class_densities(class_label=f'{i}', dataset_root='data/skeletonized',plot_path=plot_path)
+    #     plot_path = f'materijali/gustina_klase_nonskel_{i}.png'
+    #     plot_class_densities(class_label=f'{i}', dataset_root='data/non-skeletonized',plot_path=plot_path)
 
 
     features_by_class, X, y, idx_by_class = extract_features_from_dir(dir_path=DIR_PATH)
-    num_of_feats = len(features_by_class[0][0])
-
+    # num_of_feats = len(features_by_class[0][0])
 
     features_names = ["mean_x", "var_x", "var_y","moment_feature", "hor_prelazi", "vert_prelazi", "r"]
     plot_cov_corr_matrix(X, feature_names=features_names, show_corr=True)
 
     # for i in range(0, num_of_feats-1):
     #     for j in range(i+1, num_of_feats):
-    #         plot_feature_space_2d(X, y, idx_by_class, feat_i=i, feat_j=j, title=f"obelezje_{j}/obelezje_{i}")
+    #         plot_path = f'materijali/2d_feats_{i}_{j}'
+    #         plot_feature_space_2d(X, y, idx_by_class, plot_path= plot_path, feat_i=i, feat_j=j, title=f"obelezje_{j}/obelezje_{i}")
 
 
 

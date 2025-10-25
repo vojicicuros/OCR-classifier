@@ -1,0 +1,64 @@
+Klasifikacija slika cifara 0-9 koriscenjem prepoznavanja oblika
+====================================================================
+
+Baza podataka slika sa par stotina slika za svaku klasu, labelirane po folderima 0..9; Slike su neobradjene
+Nakon toga, slike idu na predobradu koja ukljucuje:
+	- gaussian blurovanje
+	- binarizaciju
+	- dilataciju/eroziju 
+	- skeletonizaciju
+	- isecanje padding-a 
+	- reskaliranje na 32x32 px.
+Ovako obradjene slike smestaju se u novu bazu na isti nacin (folderi 0..9) koja ide na dalje koriscenje (pipeline za ekstrakciju obelezja i potom klasifikaciju koriscenjem lda i knn).
+
+
+====================================================================
+Ekstrakcija obelezja (feature-a):
+
+Svaka slika predstavlja se vektorom feature-a koji se dobija na sledeci nacin
+vektor feature-a: [mean_x, var_x, var_y, moment_feature, h, v, r] za svaku sliku.
+	- slika se izdeli na N horizontalnih/vertikalnih segmenata i u svakom segmentu se racuna gustina crnih piksela
+	- mean_x, mean_y, var_x, var_y - srednja vrednost i varijansa gustine px. po horiz. i vert. segmentima
+	- zbog visoke korelacije izmedju mean_x i mean_y izbacujemo mean_y
+	- moment_feature - moment slike 
+		moment_feature = np.sqrt(mu20**2 + mu02**2 + 2*mu11**2) / (mass**2)
+		M = [mu20 mu11; mu11 mu02]
+		mass**2 (brojilac) je norma matrice M
+		Matrica M - mat. centralnih momenata drugog reda, poznata i kao matrica inercije oblika ili kovarijaciona matrica raspodele mase piksela.
+	
+	- h - broji koliko puta se piksel u redu menja iz 0 u 1 ili obrnuto (horizontalne tranzicije)
+	- v - broji koliko puta se piksel u koloni menja iz 0 u 1 ili obrnuto (vertikalne tranzicije)
+		-mere „nazubljenost” ili složenost ivica oblika — što više prelaza između crnog i belog, to je kontura složenija ili objekat „teksturisaniji
+
+	- r - Centar mase slike - težište raspodele piksela objekta, tj. tačku oko koje su crni pikseli „uravnoteženi”.
+
+
+	
+Plotujemo hor. i vert. gustine po segmentima za skeletonizovane i ne-skeletonizovane baze slika da bismo pokazali kako skeletonizacija utice na standardizaciju podataka.
+
+Plotujemo korelacionu matricu koja nam govori o medjusobnoj korelaciji feature-a. Ukoliko je korelacija jako visoka, mozemo izbaciti jedan od tih feature-a jer nije informativan. (Tako smo izbacili mean_y jer je u visokoj korelaciji sa mean_x).
+
+Takodje plotujemo neke od feature-a po svim klasama da bismo pokazali da se oni mogu koristiti za separabilnost klasa odokativno.
+
+====================================================================
+Za klasifikatore koje projektujemo odabrali smo Linearni Bajesov klasifikator (LDA - Linear Discriminant Analysis) i kNN (k Nearest Neighbours) (ZA SADA!!! - ako bude vremena dodati jos i SVM!!!)
+
+Linearni Bajesov klasifikator (LDA.py)
+========================================
+
+Linearni Bajesov klasifikator (Linear Bayes Classifier) je parametarski pristup klasifikaciji koji se zasniva na Bajesovom pravilu odlučivanja i pretpostavci da su klase opisane Gausovim (normalnim) raspodelama (ovakva pretpostavka je razumna s obzirom na to da je Gausova raspodela nesto sto se cesto nalazi u prirodi svuda oko nas).
+p(x∣ωi​)=N(x;μi​,Σi​) - Svaka klasa opisana je normalnom raspodelom sa srednjom vrednoscu μi​, i kovarijacionom matricom Σi​.
+Ukoliko se pretpostavi da svaka klasa ima istu kovarijacionu matricu, tada diskriminaciona funkcija postaje linearna i glasi gi​(x)=wiT​x+wi0, gde su wi​=Σ−1μi​; wi0​=−21​μiT​Σ−1μi​+lnP(ωi​). Sto znaci da ono sto bi u 2d prostoru bila linearna prava linija, u nasem N-dimenzionalnom prostoru (7 obelezja - 7 dimenzija u nasem slucaju) bila bi neka hiper-ravan koja razdvaja taj prostor.
+
+implementacija
+
+radi se ekstrakcija svih feature-a u vektore za svaku sliku pojedinacno, i smestamo ih u recnike (dict - python) koriscenjem:
+features_by_class, X, y, idx_by_class = extract_features_from_dir(dir_path=DIR_PATH)
+
+baza se potom deli na trening i test skup (80/20%)
+
+
+
+
+
+

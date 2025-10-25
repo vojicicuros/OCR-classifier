@@ -119,13 +119,13 @@ def skeletonize_image(image):
 
 def processing_pipeline(image, target_size=(32, 32)):
 
-    img = cv2.medianBlur(image, 5)
+    img = cv2.GaussianBlur(image, 3)
     img = binary_mask(img)
-    img = image_erosion(img,iterations_num=3)
-    img = image_dilatation(img,iterations_num=2)    ##AKO POSTOJI PROBLEM PROVERITi DILATACIJU I EROZIJU
+    # img = image_erosion(img,iterations_num=3)
+    # img = image_dilatation(img,iterations_num=2)    ##AKO POSTOJI PROBLEM PROVERITi DILATACIJU I EROZIJU
     img = crop_padding_image(img)
     img = resize_image(img, target_size)
-    img = skeletonize_image(img)
+    # img = skeletonize_image(img)
 
     return img
 
@@ -143,28 +143,59 @@ if __name__ == "__main__":
     #         target_size=(28, 28)
     #     )
 
-    folder_path = 'Baza za OCR/Cifre za testiranje/'
-    out_dir = 'processed_images'  # folder za čuvanje novih slika
+    folder_path = 'mnist_dataset'
+    out_dir = 'big_processed_images'  # folder za čuvanje novih slika
     os.makedirs(out_dir, exist_ok=True)  # napravi folder ako ne postoji
 
-    for i in range(0, 10):
-        for j in range(1, 113):
-            # ulazni path
-            image_path = os.path.join(folder_path, f"{i}{j:03}.png")
+    # for i in range(0, 10):
+    #     for j in range(1, 113):
+    #         # ulazni path
+    #         image_path = os.path.join(folder_path, f"{i}{j:03}.png")
+    #         raw_img = read_img(path=image_path)
+    #         processed_img = processing_pipeline(raw_img)
+    #
+    #         # napravi ime fajla: new_000.png
+    #         base = os.path.basename(image_path)  # npr. "000.png"
+    #         name, _ = os.path.splitext(base)  # "000"
+    #         fname = f"new_{name}.png"  # "new_000.png"
+    #
+    #         # izlazni path
+    #         out_path = os.path.join(out_dir, fname)
+    #
+    #         # snimi fajl
+    #         cv2.imwrite(out_path, processed_img, [cv2.IMWRITE_PNG_COMPRESSION, 9])
+    #
+    #         print(f"Done: {out_path}")
+
+    for class_label in range(10):  # prolazak kroz klase 0–9
+        class_dir = os.path.join(folder_path, str(class_label))
+        if not os.path.isdir(class_dir):
+            continue  # preskoči ako folder ne postoji (za svaki slučaj)
+
+        # napravi izlazni podfolder za tu klasu
+        out_class_dir = os.path.join(out_dir, str(class_label))
+        os.makedirs(out_class_dir, exist_ok=True)
+
+        count = 0  # brojač slika po klasi
+
+        for filename in sorted(os.listdir(class_dir)):
+            if not filename.endswith(".png"):
+                continue
+
+            image_path = os.path.join(class_dir, filename)
             raw_img = read_img(path=image_path)
             processed_img = processing_pipeline(raw_img)
 
-            # napravi ime fajla: new_000.png
-            base = os.path.basename(image_path)  # npr. "000.png"
-            name, _ = os.path.splitext(base)  # "000"
-            fname = f"new_{name}.png"  # "new_000.png"
+            fname = f"{filename}"
+            out_path = os.path.join(out_class_dir, fname)
 
-            # izlazni path
-            out_path = os.path.join(out_dir, fname)
-
-            # snimi fajl
             cv2.imwrite(out_path, processed_img, [cv2.IMWRITE_PNG_COMPRESSION, 9])
-
             print(f"Done: {out_path}")
+
+            count += 1
+            if count >= 20:
+                break
+
+
 
 
