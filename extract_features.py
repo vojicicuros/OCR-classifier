@@ -143,16 +143,17 @@ def feature_image_moments(img):
     moment_feature = np.sqrt(mu20**2 + mu02**2 + 2*mu11**2) / (mass**2)
     return np.float32(moment_feature)
 
-def compute_features(img, kx=4, ky=4, threshold=127):
+def compute_features(img, kx=4, ky=2, threshold=127):
     x_density = horizontal_black_density(img, k=kx).astype(np.float32)
     mean_x = float(np.mean(x_density))
     var_x = np.var(x_density)
 
     y_density = vertical_black_density(img, k=ky).astype(np.float32)
+    # mean_y = float(np.mean(y_density))
     var_y = np.var(y_density)
 
     moment_feature = feature_image_moments(img)
-    h, v = count_transitions_xy(img, normalize=True)   # ← preporuka
+    h, v = count_transitions_xy(img, normalize=True)
     r = feature_center_of_mass(img)
 
     return np.array([mean_x, var_x, var_y, moment_feature, h, v, r], dtype=np.float32)
@@ -173,7 +174,7 @@ def zscore_normalize(X_train, X_test=None):
     # Inače vrati samo normalizovani trening skup
     return X_train_n, mu, sigma
 
-def extract_features_from_dir(dir_path="data/skeletonized/", classes=range(10), kx=4, ky=4,
+def extract_features_from_dir(dir_path="data/skeletonized/", classes=range(10),
                               exts=".png", threshold=127, binarize=True):
     """
     Prolazi kroz podfoldere '0'..'9' (ili dati 'classes'), učitava slike pomoću load_image,
@@ -205,7 +206,7 @@ def extract_features_from_dir(dir_path="data/skeletonized/", classes=range(10), 
             if binarize:
                 img = binarize_image(img, threshold=threshold, invert=False)
 
-            f = compute_features(img, kx=kx, ky=ky, threshold=threshold)
+            f = compute_features(img, threshold=threshold)
             per_class.append(f)
             X_list.append(f)
             y_list.append(int(cls))
@@ -475,8 +476,6 @@ def binarize_image(img, threshold=127, invert=False, use_otsu=False):
 
 if __name__ == "__main__":
     DIR_PATH = "data/skeletonized/"
-
-    br_kolona, br_redova = 4, 4
 
     # for i in range(0,10):
     #

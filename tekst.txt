@@ -56,6 +56,7 @@ radi se ekstrakcija svih feature-a u vektore za svaku sliku pojedinacno, i smest
 features_by_class, X, y, idx_by_class = extract_features_from_dir(dir_path=DIR_PATH)
 
 baza se potom deli na trening i test skup (80/20%)
+onda se vrsi zscore - normalizacija (standardizacija) podataka, kojom se obelezja skaliraju tako da im srednja vrednost bude 0, a standardna devijacija 1
 
 
 

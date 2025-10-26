@@ -91,19 +91,20 @@ def _per_class_prf(M):
 
 def classification_report(y_true, y_pred, classes=None):
     M, classes = confusion_matrix(y_true, y_pred, classes)
-    p, r, f1, support = _per_class_prf(M)
-    total = int(np.sum(support))
+    p, _, _, _ = _per_class_prf(M)
 
     lines = []
-    header = f"{'klasa':>8} | {'preciznost':>10} {'odziv':>8} {'f1':>8} {'broj':>8}"
+    header = f"{'klasa':>8} | {'preciznost':>10}"
     lines.append(header)
     lines.append("-" * len(header))
-    for i, c in enumerate(classes):
-        lines.append(f"{str(c):>8} | {p[i]:10.4f} {r[i]:8.4f} {f1[i]:8.4f} {int(support[i]):8d}")
-    lines.append("-" * len(header))
 
+    for i, c in enumerate(classes):
+        lines.append(f"{str(c):>8} | {p[i]:10.4f}")
+
+    lines.append("-" * len(header))
     acc = accuracy(y_true, y_pred)
     lines.append(f"{'tačnost':>8} | {acc:10.4f}")
+
     return "\n".join(lines)
 
 
@@ -198,21 +199,88 @@ def plot_pairwise_lda(X, y, cls_a, cls_b, title_note=""):
     plt.show()
 
 
-def plot_many_pairs_lda(X, y, pairs=None, max_pairs=6):
+def plot_many_pairs_lda(X, y, pairs=None, max_pairs=None):
     classes = np.unique(y)
+
+    # Ako parovi nisu eksplicitno zadati, generiši sve kombinacije
     if pairs is None:
         pairs = []
         for i in range(len(classes)):
             for j in range(i + 1, len(classes)):
                 pairs.append((int(classes[i]), int(classes[j])))
-        pairs = pairs[:max_pairs]
+
+        # Ako je zadat max_pairs, uzmi samo taj broj prvih kombinacija
+        if max_pairs is not None:
+            pairs = pairs[:max_pairs]
 
     for (a, b) in pairs:
         plot_pairwise_lda(X, y, a, b, title_note="  (PCA 2D)")
 
+# def plot_multiclass_lda(X, y, model, title="LDA višeklasna vizualizacija (2D)"):
+#     """
+#     Prikazuje podatke projektovane u prve dve LDA ose.
+#     Radi samo ako broj klasa >= 3.
+#     """
+#     from matplotlib.colors import ListedColormap
+#
+#     A = model["A"]  # oblik (K, D)
+#     classes = model["classes"]
+#
+#     if A.shape[0] < 2:
+#         print("Premalo klasa za višedimenzionalnu LDA projekciju.")
+#         return
+#
+#     # Uzimamo prve dve diskriminantne ose
+#     W_lda = A[:2, :]  # oblik (2, D)
+#     Z = X @ W_lda.T   # (N, 2)
+#
+#     plt.figure(figsize=(7, 5))
+#     for i, c in enumerate(classes):
+#         plt.scatter(
+#             Z[y == c, 0],
+#             Z[y == c, 1],
+#             label=f"Klasa {c}",
+#             alpha=0.7,
+#             s=40
+#         )
+#
+#     plt.xlabel("LDA komponenta 1")
+#     plt.ylabel("LDA komponenta 2")
+#     plt.title(title)
+#     plt.legend(loc="best", fontsize=9)
+#     plt.grid(True)
+#     plt.tight_layout()
+#     plt.show()
+
+from mpl_toolkits.mplot3d import Axes3D
+
+# def plot_lda_3d(X, y, model):
+#     if model["A"].shape[0] < 3:
+#         print("Nema dovoljno klasa za 3D LDA.")
+#         return
+#
+#     W3 = model["A"][:3, :]  # prve 3 LDA komponente
+#     Z = X @ W3.T  # projekcija
+#
+#     fig = plt.figure(figsize=(8, 6))
+#     ax = fig.add_subplot(111, projection="3d")
+#     classes = model["classes"]
+#
+#     for i, c in enumerate(classes):
+#         ax.scatter(Z[y == c, 0], Z[y == c, 1], Z[y == c, 2], label=f"Klasa {c}", s=40, alpha=0.7)
+#
+#     ax.set_xlabel("LDA 1")
+#     ax.set_ylabel("LDA 2")
+#     ax.set_zlabel("LDA 3")
+#     ax.set_title("LDA višeklasna vizualizacija (3D)")
+#     ax.legend(loc="upper left", fontsize=9)
+#     plt.tight_layout()
+#     plt.show()
+
 
 if __name__ == "__main__":
-    DIR_PATH = "data/skeletonized/"
+    DIR_PATH = "data/new-skeletonized/"
+    # DIR_PATH = "mnist_dataset/"
     features_by_class, X, y, idx_by_class = extract_features_from_dir(dir_path=DIR_PATH)
 
     rng = np.random.default_rng(0)
@@ -238,7 +306,10 @@ if __name__ == "__main__":
     M, cls = confusion_matrix(yte, yhat_te)
     plot_confusion(M, cls, title="LDA na test skupu")
 
-    plot_many_pairs_lda(Xtr_n, ytr, pairs=None, max_pairs=6)
+    plot_many_pairs_lda(Xtr_n, ytr, pairs=None)
+    # plot_multiclass_lda(Xtr_n, ytr, model)
+    # plot_lda_3d(Xtr_n, ytr, model)
+
 
 
 
