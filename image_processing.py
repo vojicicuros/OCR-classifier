@@ -129,7 +129,81 @@ def processing_pipeline(image, target_size=(32, 32)):
 
     return img
 
+# novo
+
+def save_comparison_plot(original, processed, step_name, save_dir):
+    """Prikazuje originalnu i obrađenu sliku u 1x2 poretku i čuva plot."""
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, f"{step_name}.png")
+
+    plt.figure(figsize=(7, 4))
+    plt.subplot(1, 2, 1)
+    plt.imshow(original, cmap='gray')
+    plt.title("Originalna slika")
+    plt.axis('off')
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(processed, cmap='gray')
+    plt.title(step_name)
+    plt.axis('off')
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=200, bbox_inches='tight')
+    plt.close()
+    print(f"[INFO] Sačuvan korak: {save_path}")
+
+
+def visualize_processing_pipeline(image_path, save_dir="pipeline_steps", target_size=(32, 32)):
+    """Izvršava processing_pipeline i čuva 1x2 poređenje za svaki korak."""
+
+    # Učitavanje originalne slike
+    original = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    if original is None:
+        raise FileNotFoundError(f"Nije moguće učitati sliku: {image_path}")
+
+    img = original.copy()
+    save_comparison_plot(original, img, "01_original", save_dir)
+
+    # Gaussian blur
+    blurred = cv2.GaussianBlur(img, (3, 3), 0)
+    save_comparison_plot(original, blurred, "02_Gaussian_Blur", save_dir)
+    img = blurred
+
+    # Binarizacija
+    img_bin = binary_mask(img)
+    save_comparison_plot(original, img_bin, "03_Binarizacija", save_dir)
+    img = img_bin
+
+    # (opciono) Erozija
+    # img_er = image_erosion(img, iterations_num=1)
+    # save_comparison_plot(original, img_er, "04_Dilatacija", save_dir)
+    # img = img_er
+    #
+    # # (opciono) Dilatacija
+    # img_dil = image_dilatation(img, iterations_num=1)
+    # save_comparison_plot(original, img_dil, "05_Erozija", save_dir)
+    # img = img_dil
+
+    # Crop/padding
+    img_crop = crop_padding_image(img)
+    save_comparison_plot(original, img_crop, "06_Crop_padding", save_dir)
+    img = img_crop
+
+    # Resize
+    img_resized = resize_image(img, target_size)
+    save_comparison_plot(original, img_resized, "07_Resize", save_dir)
+    img = img_resized
+
+    # (opciono) Skeletonizacija
+    img_skel = skeletonize_image(img)
+    save_comparison_plot(original, img_skel, "08_Skeletonizacija", save_dir)
+    img = img_skel
+
+    print(f"[INFO] Obrada završena. Svi rezultati sačuvani u: {save_dir}")
+    return img
+
 if __name__ == "__main__":
+
     # for d in range(10):
     #     image_path = f"data/{d}/cifra_{d}.jpg"
     #     raw_img = read_img(path=image_path)
@@ -143,9 +217,9 @@ if __name__ == "__main__":
     #         target_size=(28, 28)
     #     )
 
-    folder_path = 'mnist_dataset'
-    out_dir = 'big_processed_images'  # folder za čuvanje novih slika
-    os.makedirs(out_dir, exist_ok=True)  # napravi folder ako ne postoji
+    # folder_path = 'mnist_dataset'
+    # out_dir = 'big_processed_images'  # folder za čuvanje novih slika
+    # os.makedirs(out_dir, exist_ok=True)  # napravi folder ako ne postoji
 
     # for i in range(0, 10):
     #     for j in range(1, 113):
@@ -167,34 +241,37 @@ if __name__ == "__main__":
     #
     #         print(f"Done: {out_path}")
 
-    for class_label in range(10):  # prolazak kroz klase 0–9
-        class_dir = os.path.join(folder_path, str(class_label))
-        if not os.path.isdir(class_dir):
-            continue  # preskoči ako folder ne postoji (za svaki slučaj)
+    # for class_label in range(10):  # prolazak kroz klase 0–9
+    #     class_dir = os.path.join(folder_path, str(class_label))
+    #     if not os.path.isdir(class_dir):
+    #         continue  # preskoči ako folder ne postoji (za svaki slučaj)
+    #
+    #     # napravi izlazni podfolder za tu klasu
+    #     out_class_dir = os.path.join(out_dir, str(class_label))
+    #     os.makedirs(out_class_dir, exist_ok=True)
+    #
+    #     count = 0  # brojač slika po klasi
+    #
+    #     for filename in sorted(os.listdir(class_dir)):
+    #         if not filename.endswith(".png"):
+    #             continue
+    #
+    #         image_path = os.path.join(class_dir, filename)
+    #         raw_img = read_img(path=image_path)
+    #         processed_img = processing_pipeline(raw_img)
+    #
+    #         fname = f"{filename}"
+    #         out_path = os.path.join(out_class_dir, fname)
+    #
+    #         cv2.imwrite(out_path, processed_img, [cv2.IMWRITE_PNG_COMPRESSION, 9])
+    #         print(f"Done: {out_path}")
+    #
+    #         count += 1
+    #         if count >= 20:
+    #             break
 
-        # napravi izlazni podfolder za tu klasu
-        out_class_dir = os.path.join(out_dir, str(class_label))
-        os.makedirs(out_class_dir, exist_ok=True)
+    visualize_processing_pipeline("cifra_5/cifra.png", save_dir="cifra_5")
 
-        count = 0  # brojač slika po klasi
-
-        for filename in sorted(os.listdir(class_dir)):
-            if not filename.endswith(".png"):
-                continue
-
-            image_path = os.path.join(class_dir, filename)
-            raw_img = read_img(path=image_path)
-            processed_img = processing_pipeline(raw_img)
-
-            fname = f"{filename}"
-            out_path = os.path.join(out_class_dir, fname)
-
-            cv2.imwrite(out_path, processed_img, [cv2.IMWRITE_PNG_COMPRESSION, 9])
-            print(f"Done: {out_path}")
-
-            count += 1
-            if count >= 20:
-                break
 
 
 

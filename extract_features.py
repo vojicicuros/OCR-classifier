@@ -143,7 +143,7 @@ def feature_image_moments(img):
     moment_feature = np.sqrt(mu20**2 + mu02**2 + 2*mu11**2) / (mass**2)
     return np.float32(moment_feature)
 
-def compute_features(img, kx=4, ky=2, threshold=127):
+def compute_features(img, kx=4, ky=4, threshold=127):
     x_density = horizontal_black_density(img, k=kx).astype(np.float32)
     mean_x = float(np.mean(x_density))
     var_x = np.var(x_density)
@@ -275,7 +275,7 @@ def plot_feature_corr(X, feature_names=None, show_cov=False, figsize=(7, 6), ann
         plt.tight_layout()
         plt.show()
 
-def plot_feature_space_2d(X, y, idx_by_class, feat_i=0, feat_j=1, plot_path=None,
+def plot_feature_space_2d(X, y, idx_by_class, feat_i=4, feat_j=5, plot_path=None,
                           title=None, figsize=(7, 6), alpha=0.75, s=18,
                           show_centroids=True, equal_axes=False):
     N, D = X.shape
@@ -493,15 +493,15 @@ if __name__ == "__main__":
 
 
     features_by_class, X, y, idx_by_class = extract_features_from_dir(dir_path=DIR_PATH)
-    # num_of_feats = len(features_by_class[0][0])
+    num_of_feats = len(features_by_class[0][0])
 
     features_names = ["mean_x", "var_x", "var_y","moment_feature", "hor_prelazi", "vert_prelazi", "r"]
     plot_cov_corr_matrix(X, feature_names=features_names, show_corr=True)
 
-    # for i in range(0, num_of_feats-1):
-    #     for j in range(i+1, num_of_feats):
-    #         plot_path = f'materijali/2d_feats_{i}_{j}'
-    #         plot_feature_space_2d(X, y, idx_by_class, plot_path= plot_path, feat_i=i, feat_j=j, title=f"obelezje_{j}/obelezje_{i}")
+    for i in range(0, num_of_feats-1):
+        for j in range(i+1, num_of_feats):
+            plot_path = f'materijali/2d_feats_{i}_{j}'
+            plot_feature_space_2d(X, y, idx_by_class, plot_path= plot_path, feat_i=i, feat_j=j, title=f"obelezje_{j}/obelezje_{i}")
 
 
 

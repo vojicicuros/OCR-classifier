@@ -50,6 +50,35 @@ def lda_predict(X, model):
     return model["classes"][idx]
 
 
+def balance_by_min_count(X, y, rng=None):
+    """
+    Downsample svaku klasu na veličinu najmanje klase.
+    Zadržava determinističnost ako se prosledi numpy Generator (rng).
+    """
+    y = y.astype(int)
+    classes, counts = np.unique(y, return_counts=True)
+    min_count = counts.min()
+
+    idx_keep = []
+    for c in classes:
+        idx_c = np.where(y == c)[0]
+        if rng is None:
+            sel = np.random.choice(idx_c, size=min_count, replace=False)
+        else:
+            sel = rng.choice(idx_c, size=min_count, replace=False)
+        idx_keep.append(sel)
+
+    idx_keep = np.concatenate(idx_keep)
+
+    # promešaj objedinjene indekse
+    if rng is None:
+        np.random.shuffle(idx_keep)
+    else:
+        rng.shuffle(idx_keep)
+
+    return X[idx_keep], y[idx_keep]
+
+
 # -----------------------------
 #   Metrics helpers
 # -----------------------------
@@ -159,6 +188,7 @@ def _lda_pairwise_params_2d(Z, y_ab, a, b):
 def plot_pairwise_lda(X, y, cls_a, cls_b, title_note=""):
     """
     Nacrtaj PCA→2D za dve klase i LDA granicu između njih.
+    Radi na prosleđenom skupu (npr. TEST).
     """
     mask = (y == cls_a) | (y == cls_b)
     Xab = X[mask]
@@ -183,13 +213,13 @@ def plot_pairwise_lda(X, y, cls_a, cls_b, title_note=""):
 
     if np.abs(w[1]) < 1e-12:
         x0 = -b0 / w[0]
-        plt.axvline(x=x0, color="k", linewidth=2, label="Granica odlučivanja")
+        plt.axvline(x=x0, linewidth=2, label="Granica odlučivanja")
     else:
         yy = -(w[0] / w[1]) * xx - b0 / w[1]
-        plt.plot(xx, yy, "k-", linewidth=2, label="Granica odlučivanja")
+        plt.plot(xx, yy, linewidth=2, label="Granica odlučivanja")
 
-    plt.scatter(mu_a[0], mu_a[1], marker="x", s=120, linewidths=2, color="k", label="Sredine klasa")
-    plt.scatter(mu_b[0], mu_b[1], marker="x", s=120, linewidths=2, color="k")
+    plt.scatter(mu_a[0], mu_a[1], marker="x", s=120, linewidths=2, label="Sredine klasa")
+    plt.scatter(mu_b[0], mu_b[1], marker="x", s=120, linewidths=2)
 
     plt.title(f"LDA (par {cls_a} vs {cls_b}){title_note}")
     plt.xlabel("Obeležje 1 (PCA)")
@@ -200,82 +230,24 @@ def plot_pairwise_lda(X, y, cls_a, cls_b, title_note=""):
 
 
 def plot_many_pairs_lda(X, y, pairs=None, max_pairs=None):
+    """
+    Ako pairs nije zadat, generišu se SVE kombinacije parova klasa koje postoje u y.
+    Ovo će za 10 klasa nacrtati 45 grafika (svaki par klasa).
+    """
     classes = np.unique(y)
 
-    # Ako parovi nisu eksplicitno zadati, generiši sve kombinacije
     if pairs is None:
         pairs = []
         for i in range(len(classes)):
             for j in range(i + 1, len(classes)):
                 pairs.append((int(classes[i]), int(classes[j])))
-
-        # Ako je zadat max_pairs, uzmi samo taj broj prvih kombinacija
         if max_pairs is not None:
             pairs = pairs[:max_pairs]
 
     for (a, b) in pairs:
         plot_pairwise_lda(X, y, a, b, title_note="  (PCA 2D)")
 
-# def plot_multiclass_lda(X, y, model, title="LDA višeklasna vizualizacija (2D)"):
-#     """
-#     Prikazuje podatke projektovane u prve dve LDA ose.
-#     Radi samo ako broj klasa >= 3.
-#     """
-#     from matplotlib.colors import ListedColormap
-#
-#     A = model["A"]  # oblik (K, D)
-#     classes = model["classes"]
-#
-#     if A.shape[0] < 2:
-#         print("Premalo klasa za višedimenzionalnu LDA projekciju.")
-#         return
-#
-#     # Uzimamo prve dve diskriminantne ose
-#     W_lda = A[:2, :]  # oblik (2, D)
-#     Z = X @ W_lda.T   # (N, 2)
-#
-#     plt.figure(figsize=(7, 5))
-#     for i, c in enumerate(classes):
-#         plt.scatter(
-#             Z[y == c, 0],
-#             Z[y == c, 1],
-#             label=f"Klasa {c}",
-#             alpha=0.7,
-#             s=40
-#         )
-#
-#     plt.xlabel("LDA komponenta 1")
-#     plt.ylabel("LDA komponenta 2")
-#     plt.title(title)
-#     plt.legend(loc="best", fontsize=9)
-#     plt.grid(True)
-#     plt.tight_layout()
-#     plt.show()
-
-from mpl_toolkits.mplot3d import Axes3D
-
-# def plot_lda_3d(X, y, model):
-#     if model["A"].shape[0] < 3:
-#         print("Nema dovoljno klasa za 3D LDA.")
-#         return
-#
-#     W3 = model["A"][:3, :]  # prve 3 LDA komponente
-#     Z = X @ W3.T  # projekcija
-#
-#     fig = plt.figure(figsize=(8, 6))
-#     ax = fig.add_subplot(111, projection="3d")
-#     classes = model["classes"]
-#
-#     for i, c in enumerate(classes):
-#         ax.scatter(Z[y == c, 0], Z[y == c, 1], Z[y == c, 2], label=f"Klasa {c}", s=40, alpha=0.7)
-#
-#     ax.set_xlabel("LDA 1")
-#     ax.set_ylabel("LDA 2")
-#     ax.set_zlabel("LDA 3")
-#     ax.set_title("LDA višeklasna vizualizacija (3D)")
-#     ax.legend(loc="upper left", fontsize=9)
-#     plt.tight_layout()
-#     plt.show()
+from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
 
 if __name__ == "__main__":
@@ -283,7 +255,10 @@ if __name__ == "__main__":
     # DIR_PATH = "mnist_dataset/"
     features_by_class, X, y, idx_by_class = extract_features_from_dir(dir_path=DIR_PATH)
 
-    rng = np.random.default_rng(0)
+    rng = np.random.default_rng(9)
+    # balansiranje klasa
+    X, y = balance_by_min_count(X, y, rng=rng)
+
     idx = rng.permutation(len(y))
     n_tr = int(0.8 * len(y))
     tr, te = idx[:n_tr], idx[n_tr:]
@@ -291,9 +266,13 @@ if __name__ == "__main__":
     Xtr, ytr = X[tr], y[tr]
     Xte, yte = X[te], y[te]
 
+    # normalizacija (fit na train, primena na train i test)
     Xtr_n, Xte_n, mu, sigma = zscore_normalize(Xtr, Xte)
+
+    # treniranje LDA na train skupu
     model = lda_fit(Xtr_n, ytr)
 
+    # evaluacija
     yhat_tr = lda_predict(Xtr_n, model)
     yhat_te = lda_predict(Xte_n, model)
 
@@ -306,10 +285,7 @@ if __name__ == "__main__":
     M, cls = confusion_matrix(yte, yhat_te)
     plot_confusion(M, cls, title="LDA na test skupu")
 
-    plot_many_pairs_lda(Xtr_n, ytr, pairs=None)
-    # plot_multiclass_lda(Xtr_n, ytr, model)
-    # plot_lda_3d(Xtr_n, ytr, model)
-
-
-
-
+    # -----------------------------
+    # PLOTOVI NA TEST SKUPU ZA SVE KOMBИНАЦИЈЕ ОД 10 КЛАСА
+    # -----------------------------
+    plot_many_pairs_lda(Xte_n, yte, pairs=None)  # <-- KORIŠĆEN TEST SKUP (Xte_n, yte)

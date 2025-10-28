@@ -1,0 +1,83 @@
+== k-fold izbor k (Euklidska) ==
+k= 1  CV-tačnost=0.7997 ± 0.0161
+k= 2  CV-tačnost=0.7997 ± 0.0161
+k= 3  CV-tačnost=0.8174 ± 0.0151
+k= 4  CV-tačnost=0.8157 ± 0.0110
+k= 5  CV-tačnost=0.8173 ± 0.0080
+k= 6  CV-tačnost=0.8169 ± 0.0154
+k= 7  CV-tačnost=0.8163 ± 0.0186
+k= 8  CV-tačnost=0.8168 ± 0.0138
+k= 9  CV-tačnost=0.8152 ± 0.0097
+k=10  CV-tačnost=0.8157 ± 0.0106
+k=11  CV-tačnost=0.8152 ± 0.0124
+k=12  CV-tačnost=0.8201 ± 0.0130
+k=13  CV-tačnost=0.8153 ± 0.0146
+k=14  CV-tačnost=0.8137 ± 0.0147
+k=15  CV-tačnost=0.8105 ± 0.0160
+k=16  CV-tačnost=0.8143 ± 0.0183
+k=17  CV-tačnost=0.8110 ± 0.0178
+k=18  CV-tačnost=0.8094 ± 0.0161
+k=19  CV-tačnost=0.8094 ± 0.0194
+k=20  CV-tačnost=0.8062 ± 0.0185
+[CV-EUKLIDSKA] najbolji k=12
+
+[TEST-EUKLIDSKA]
+   klasa | preciznost
+---------------------
+       0 |     0.9565
+       1 |     0.9762
+       2 |     0.8478
+       3 |     0.8182
+       4 |     1.0000
+       5 |     0.7551
+       6 |     0.8810
+       7 |     0.9565
+       8 |     0.7500
+       9 |     0.6000
+---------------------
+      tačnost |     0.8470
+
+== k-fold izbor k (Statistička distanca) ==
+k= 1  CV-tačnost=0.8056 ± 0.0208
+k= 2  CV-tačnost=0.8056 ± 0.0208
+k= 3  CV-tačnost=0.8298 ± 0.0164
+k= 4  CV-tačnost=0.8309 ± 0.0126
+k= 5  CV-tačnost=0.8346 ± 0.0071
+k= 6  CV-tačnost=0.8367 ± 0.0165
+k= 7  CV-tačnost=0.8335 ± 0.0095
+k= 8  CV-tačnost=0.8324 ± 0.0184
+k= 9  CV-tačnost=0.8325 ± 0.0214
+k=10  CV-tačnost=0.8346 ± 0.0207
+k=11  CV-tačnost=0.8325 ± 0.0235
+k=12  CV-tačnost=0.8373 ± 0.0156
+k=13  CV-tačnost=0.8314 ± 0.0159
+k=14  CV-tačnost=0.8271 ± 0.0145
+k=15  CV-tačnost=0.8308 ± 0.0120
+k=16  CV-tačnost=0.8287 ± 0.0153
+k=17  CV-tačnost=0.8298 ± 0.0126
+k=18  CV-tačnost=0.8287 ± 0.0144
+k=19  CV-tačnost=0.8255 ± 0.0127
+k=20  CV-tačnost=0.8250 ± 0.0146
+[CV-STATISTIČKA] najbolji k=12
+
+[TEST-STATISTIČKA]
+   klasa | preciznost
+---------------------
+       0 |     0.9167
+       1 |     1.0000
+       2 |     0.8889
+       3 |     0.8542
+   klasa | preciznost
+---------------------
+       0 |     0.9167
+       1 |     1.0000
+       2 |     0.8889
+       3 |     0.8542
+       4 |     0.9756
+       5 |     0.7708
+       6 |     0.7292
+       7 |     0.9762
+       8 |     0.7705
+       9 |     0.7045
+---------------------
+      tačnost |     0.8513
